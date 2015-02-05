@@ -935,8 +935,9 @@ bool Widget::hitTest(const Vec2 &pt)
 bool Widget::isClippingParentContainsPoint(const Vec2 &pt)
 {
     _affectByClipping = false;
-    Widget* parent = getWidgetParent();
-    Widget* clippingParent = nullptr;
+    Node* parent = getParent();
+    extension::ScrollView* clippingExtensionScrollViewParent = nullptr;
+    Widget* clippingWidgetParent = nullptr;
     while (parent)
     {
         Layout* layoutParent = dynamic_cast<Layout*>(parent);
@@ -945,11 +946,20 @@ bool Widget::isClippingParentContainsPoint(const Vec2 &pt)
             if (layoutParent->isClippingEnabled())
             {
                 _affectByClipping = true;
-                clippingParent = layoutParent;
+                clippingWidgetParent = layoutParent;
                 break;
             }
         }
-        parent = parent->getWidgetParent();
+
+        extension::ScrollView* scrollviewParent = dynamic_cast<extension::ScrollView*>(parent);
+        if (scrollviewParent)
+        {
+            _affectByClipping = true;
+            clippingExtensionScrollViewParent = scrollviewParent;
+            break;
+        }
+
+        parent = parent->getParent();
     }
 
     if (!_affectByClipping)
@@ -958,19 +968,27 @@ bool Widget::isClippingParentContainsPoint(const Vec2 &pt)
     }
 
 
-    if (clippingParent)
+    if (clippingWidgetParent)
     {
         bool bRet = false;
-        if (clippingParent->hitTest(pt))
+        if (clippingWidgetParent->hitTest(pt))
         {
             bRet = true;
         }
         if (bRet)
         {
-            return clippingParent->isClippingParentContainsPoint(pt);
+            return clippingWidgetParent->isClippingParentContainsPoint(pt);
         }
         return false;
     }
+
+    if (clippingExtensionScrollViewParent)
+    {
+        Vec2 touchLocation = clippingExtensionScrollViewParent->getParent()->convertToNodeSpace(pt);
+        bool bRet = clippingExtensionScrollViewParent->boundingBox().containsPoint(touchLocation);
+        return bRet;
+    }
+
     return true;
 }
 
